@@ -1,34 +1,92 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-
+import { useFormik } from 'formik'
+import * as Yup from 'yup'
 function App() {
-  const [count, setCount] = useState(0)
+
+  const formik = useFormik({
+    initialValues: {
+      email: '',
+      password: '',
+      amount: '',
+      name: '',
+      aadhar: ''
+    },
+    onSubmit: (values) => {
+      console.log(values)
+    }, validationSchema: Yup.object({
+      email: Yup.string().required('Email is required').email("enter a valid email"),
+      amount: Yup.number('Amount must be a number').positive('Amount Must be positive').min(1, 'Amount must be more than 0'),
+      password: Yup.string().required('Password is required').min(6, 'Password must  be at least 6 characters'),
+      name: Yup.string().required('Name is required'),
+      aadhar: Yup.string().required('Aadhar is required').length(12, 'Enter a valid aadhar')
+    })
+  })
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div>
+      <form onSubmit={formik.handleSubmit}>
+        <div className='field'>
+          <input 
+            type='text' 
+            name='name' 
+            placeholder='Enter your name'
+            value={formik.values.name} 
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+          />
+          <div className='error'>{formik.errors.name && formik.touched.name && formik.errors.name}</div>
+        </div>
+        <br/>
+        <div className='field'>
+          <input 
+            type='email' 
+            name='email' 
+            placeholder='Enter your email'  
+            value={formik.values.email} 
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+          />
+          <div className='error'>{formik.errors.email && formik.touched.email && formik.errors.email}</div>
+        </div>
+        <br/>
+        <div className='field'>
+          <input 
+            type='password' 
+            name='password' 
+            placeholder='Enter your password'  
+            value={formik.values.password} 
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+          />
+          <div className='error'>{formik.errors.password && formik.touched.password && formik.errors.password}</div>
+        </div>
+        <br/>
+        <div className='field'>
+          <input 
+            type='text' 
+            name='aadhar' 
+            placeholder='Enter your aadhar'
+            value={formik.values.aadhar} 
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+          />
+          <div className='error'>{formik.errors.aadhar && formik.touched.aadhar && formik.errors.aadhar}</div>
+        </div>
+        <br/>
+        <div className='field'>
+          <input 
+            type='number' 
+            name='amount' 
+            placeholder='Enter your amount'
+            value={formik.values.amount} 
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+          />
+          <div className='error'>{formik.errors.amount && formik.touched.amount && formik.errors.amount}</div>
+        </div>
+        <br/>
+        <button type='submit'>Submit</button>
+      </form>
+    </div>
   )
 }
 
