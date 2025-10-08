@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-// IMPORTANT: Ensure Select and HStack are included in imports
+// CRITICAL: Ensure 'Select' and 'HStack' are included in your imports
 import { Box, Heading, Spinner, Text, VStack, Select, HStack } from "@chakra-ui/react"; 
 import Chart from "react-apexcharts";
 
@@ -15,9 +15,9 @@ const ToolUsageCharts = () => {
   const getToolApiEndpoint = (frame) => {
     switch (frame) {
       case "day":
-        return "/tool/usage/day";
+        return "/tool/usage/day"; // Appends /day for Last Day Average
       case "week":
-        return "/tool/usage/week";
+        return "/tool/usage/week"; // Appends /week for Last Week Average
       case "latest":
       default:
         return "/tool/usage";
@@ -30,7 +30,7 @@ const ToolUsageCharts = () => {
       setLoading(true); 
       setError(false);
       try {
-        // UPDATED: Use the helper to determine the endpoint
+        // UPDATED: Use the helper to determine the endpoint dynamically
         const endpoint = getToolApiEndpoint(timeframe);
         const response = await axios.get(endpoint);
         setData(response.data);
@@ -43,7 +43,7 @@ const ToolUsageCharts = () => {
     };
 
     fetchData();
-    // UPDATED: Re-run effect whenever timeframe changes
+    // Re-run effect whenever timeframe changes
   }, [timeframe]);
 
   // NEW: Handler for time frame change
@@ -98,11 +98,12 @@ const ToolUsageCharts = () => {
 
   return (
     <VStack spacing={8} align="stretch" p={6}>
-      {/* NEW: HStack for the Title and the Dropdown */}
+      {/* This HStack holds the Dashboard Title and the New Select dropdown */}
       <HStack justifyContent="space-between" alignItems="center">
         <Heading size="lg" textAlign="center">
           Tool Performance Overview
         </Heading>
+        {/* The Select component with the three options */}
         <Select
           value={timeframe}
           onChange={handleTimeframeChange}
@@ -110,7 +111,6 @@ const ToolUsageCharts = () => {
           bg="gray.700"
           color="white"
         >
-          {/* NEW: Options are here */}
           <option value="latest">Latest Data</option>
           <option value="day">Last Day Average</option>
           <option value="week">Last Week Average</option>
