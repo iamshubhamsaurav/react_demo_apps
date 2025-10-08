@@ -1,166 +1,298 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Box, Heading, Spinner, Text, VStack, Select, HStack } from "@chakra-ui/react";
+import {
+  Box,
+  VStack,
+  Heading,
+  Spinner,
+  Text,
+  Select,
+  SimpleGrid,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  HStack,
+  Button,
+  useToast,
+} from "@chakra-ui/react";
 import Chart from "react-apexcharts";
 
-const UserUtilizationCharts = () => {
-  const [cpuData, setCpuData] = useState({});
-  const [memoryData, setMemoryData] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [timeframe, setTimeframe] = useState("latest");
+/**
+ * HostDashboard.jsx
+ *
+ * - Fetches hostnames from /hosts (expects array of strings)
+ * - Fetches host usage from /hosts/{hostname}/{duration} where duration is one of: latest, day, week
+ * - Renders a selection UI (hostname + duration) and displays:
+ *    - A stylized summary (system_overview) with a pie chart (CPU vs Memory) and stats
+ *    - Four bar charts:
+ *        1) Top 10 processes by CPU
+ *        2) Top 10 processes by Memory
+ *        3) Top 10 users by CPU
+ *        4) Top 10 users by Memory
+ *
+ * Drop this file in your React app and import it. Make sure you have these deps:
+ *  npm install axios @chakra-ui/react @emotion/react @emotion/styled framer-motion react-apexcharts apexcharts
+ *
+ * Wrap your app with <ChakraProvider> at the root.
+ */
 
-  // NEW: Helper function to get the full API endpoint based on the selected time frame
-  const getUsersApiEndpoint = (frame) => {
-    switch (frame) {
-      case "day":
-        return "/users/usage/day";
-      case "week":
-        return "/users/usage/week";
-      case "latest":
-      default:
-        return "/users/usage/latest"; // Using /latest as the default base endpoint
-    }
-  };
+const durations = [
+  { key: "latest", label: "Latest" },
+  { key: "day", label: "Last day" },
+  { key: "week", label: "Last week" },
+];
 
-  // Fetch CPU and Memory data from a single API call
+const HostDashboard = () => {
+  const [hosts, setHosts] = useState([]);
+  const [hostname, setHostname] = useState("");
+  const [duration, setDuration] = useState("latest");
+  const [data, setData] = useState(null);
+  const [loadingHosts, setLoadingHosts] = useState(true);
+  const [loadingData, setLoadingData] = useState(false);
+  const [error, setError] = useState(null);
+  const toast = useToast();
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true); // Set loading to true on every fetch
-      setError(false);
+    const fetchHosts = async () => {
       try {
-        // UPDATED: Use the new single endpoint
-        const endpoint = getUsersApiEndpoint(timeframe);
-        const response = await axios.get(endpoint);
-        
-        // UPDATED: Extract data from the single response object using the new keys
-        setCpuData(response.data.cpu_usage || {});
-        setMemoryData(response.data.memory_usage || {});
-        setLoading(false);
+        const res = await axios.get("/hostnames/");
+        const hostList = res.data || [];
+        setHosts(hostList);
+        if (hostList.length > 0) {
+          setHostname(hostList[0]);
+        }
+        setLoadingHosts(false);
       } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(true);
-        setLoading(false);
+        console.error("fetchHosts error:", err);
+        setError("Failed to load hosts");
+        setLoadingHosts(false);
       }
     };
+    fetchHosts();
+  }, []);
 
+  useEffect(() => {
+    if (!hostname) return;
+    const fetchData = async () => {
+      setLoadingData(true);
+      setError(null);
+      try {
+        const res = await axios.get(`/hosts/${encodeURIComponent(hostname)}/${duration}`);
+        setData(res.data);
+      } catch (err) {
+        console.error("fetchData error:", err);
+        setError("Failed to load host data");
+        toast({
+          title: "Error",
+          description: "Failed to fetch host data. Check console for details.",
+          status: "error",
+          duration: 6000,
+          isClosable: true,
+        });
+      } finally {
+        setLoadingData(false);
+      }
+    };
     fetchData();
-    // Re-run effect whenever timeframe changes
-  }, [timeframe]);
+  }, [hostname, duration, toast]);
 
-  const handleTimeframeChange = (e) => {
-    setTimeframe(e.target.value);
-  };
-
-  if (loading) {
-    return (
-      <Box display="flex" alignItems="center" justifyContent="center" minH="60vh">
-        <Spinner size="xl" color="blue.500" />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box textAlign="center" mt={10}>
-        <Text color="red.500" fontSize="lg">
-          Failed to load data from API.
-        </Text>
-      </Box>
-    );
-  }
-
-  // Convert objects to sorted arrays
-  const sortAndTakeTop50Percent = (obj) => {
-    const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
-    const half = Math.ceil(entries.length / 2);
-    return entries.slice(0, half);
-  };
-
-  const topCpu = sortAndTakeTop50Percent(cpuData);
-  const topMemory = sortAndTakeTop50Percent(memoryData);
-
-  const cpuCategories = topCpu.map(([user]) => user);
-  const cpuValues = topCpu.map(([, value]) => value);
-
-  const memCategories = topMemory.map(([user]) => user);
-  const memValues = topMemory.map(([, value]) => value);
-
-  const baseOptions = {
+  // Helper to create bar chart options
+  const makeBarOptions = (categories, title, color) => ({
     chart: { type: "bar", toolbar: { show: false } },
-    plotOptions: { bar: { borderRadius: 4, horizontal: false, columnWidth: "55%" } },
+    title: { text: title, align: "center", style: { color: "#EDF2F7", fontSize: "14px" } },
+    xaxis: { categories, labels: { rotate: -45, style: { colors: "#E2E8F0" } } },
+    yaxis: { title: { text: "Percent (%)", style: { color: "#E2E8F0" } } },
+    plotOptions: { bar: { borderRadius: 6, columnWidth: "60%" } },
     dataLabels: { enabled: false },
-    grid: { borderColor: "#2D3748" },
     tooltip: { theme: "dark" },
-    yaxis: {
-      title: { text: "Utilization (%)", style: { color: "#E2E8F0" } },
-      labels: { style: { colors: "#E2E8F0" } },
-    },
+    colors: [color],
+    grid: { borderColor: "#2D3748" },
+  });
+
+  // Summary pie options
+  const summaryPieOptions = {
+    chart: { type: "pie", toolbar: { show: false } },
+    labels: ["Avg CPU %", "Avg Memory %"],
+    legend: { position: "bottom", labels: { colors: "#E2E8F0" } },
+    tooltip: { theme: "dark" },
+    colors: ["#3182CE", "#38A169"],
+  };
+
+  // Render helpers for charts data
+  const topProcessesBy = (arr, key, valueKey) => {
+    if (!Array.isArray(arr)) return { cats: [], vals: [] };
+    const slice = arr.slice(0, 10);
+    return { cats: slice.map((x) => x.name || x.item || x.command || "unknown"), vals: slice.map((x) => Number(x[valueKey] || 0)) };
+  };
+
+  const topUsersBy = (arr, valueKey) => {
+    if (!Array.isArray(arr)) return { cats: [], vals: [] };
+    const slice = arr.slice(0, 10);
+    return { cats: slice.map((x) => x.username || x.user || "unknown"), vals: slice.map((x) => Number(x[valueKey] || 0)) };
   };
 
   return (
-    // Added pt={10} for consistent top spacing, similar to ToolUsageCharts
-    <VStack spacing={8} align="stretch" p={6} pt={10}>
-      <HStack justifyContent="space-between" alignItems="center">
-        <Heading size="lg" textAlign="center">
-          User Utilization Overview
-        </Heading>
-        <Select
-          value={timeframe}
-          onChange={handleTimeframeChange}
-          width="200px"
-          bg="gray.700"
-          color="white"
-        >
-          <option value="latest">Latest Data</option>
-          <option value="day">Last Day Average</option>
-          <option value="week">Last Week Average</option>
-        </Select>
+    <VStack spacing={6} align="stretch" p={6}>
+      <Heading size="lg" textAlign="center">
+        Host Monitor Dashboard
+      </Heading>
+
+      {/* Controls */}
+      <HStack spacing={4} justify="center">
+        <Box>
+          <Text mb={2} fontWeight="600">Hostname</Text>
+          <Select
+            onChange={(e) => setHostname(e.target.value)}
+            value={hostname}
+            minW="220px"
+            bg="gray.700"
+            color="white"
+          >
+            {hosts.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </Select>
+        </Box>
+
+        <Box>
+          <Text mb={2} fontWeight="600">Duration</Text>
+          <Select value={duration} onChange={(e) => setDuration(e.target.value)} minW="180px" bg="gray.700" color="white">
+            {durations.map((d) => (
+              <option key={d.key} value={d.key}>
+                {d.label}
+              </option>
+            ))}
+          </Select>
+        </Box>
+
+        <Button onClick={() => { if (hostname) setHostname(hostname); }} colorScheme="blue" mt={6}>
+          Refresh
+        </Button>
       </HStack>
 
-      {/* CPU Utilization Chart */}
-      <Box bg="gray.800" p={5} borderRadius="xl" boxShadow="lg">
-        <Heading size="md" color="white" mb={3}>
-          Top 50% CPU Utilization Users
-        </Heading>
-        <Chart
-          options={{
-            ...baseOptions,
-            colors: ["#3182CE"],
-            xaxis: {
-              categories: cpuCategories,
-              labels: { style: { colors: "#E2E8F0", fontSize: "11px" } },
-              title: { text: "Users", style: { color: "#E2E8F0" } },
-            },
-          }}
-          series={[{ name: "CPU Util (%)", data: cpuValues }]}
-          type="bar"
-          height={350}
-        />
-      </Box>
+      {/* Loading / Error */}
+      {loadingHosts || loadingData ? (
+        <Box display="flex" alignItems="center" justifyContent="center" minH="40vh">
+          <Spinner size="xl" />
+        </Box>
+      ) : error ? (
+        <Box textAlign="center">
+          <Text color="red.400">{error}</Text>
+        </Box>
+      ) : !data ? (
+        <Box textAlign="center">
+          <Text>No data to display</Text>
+        </Box>
+      ) : (
+        <>
+          {/* Summary */}
+          <Box bg="gray.800" p={6} borderRadius="lg" boxShadow="lg">
+            <SimpleGrid columns={[1, 2, 4]} spacing={6} alignItems="center">
+              <Box>
+                <Text color="gray.300" fontSize="sm">CPU Cores</Text>
+                <Text fontSize="2xl" fontWeight="700">{data.system_overview?.cpu_cores ?? "—"}</Text>
+              </Box>
 
-      {/* Memory Utilization Chart */}
-      <Box bg="gray.800" p={5} borderRadius="xl" boxShadow="lg">
-        <Heading size="md" color="white" mb={3}>
-          Top 50% Memory Utilization Users
-        </Heading>
-        <Chart
-          options={{
-            ...baseOptions,
-            colors: ["#38A169"],
-            xaxis: {
-              categories: memCategories,
-              labels: { style: { colors: "#E2E8F0", fontSize: "11px" } },
-              title: { text: "Users", style: { color: "#E2E8F0" } },
-            },
-          }}
-          series={[{ name: "Memory Util (%)", data: memValues }]}
-          type="bar"
-          height={350}
-        />
-      </Box>
+              <Box>
+                <Text color="gray.300" fontSize="sm">Total Memory (GB)</Text>
+                <Text fontSize="2xl" fontWeight="700">{(data.system_overview?.total_memory_gb ?? 0).toFixed(2)}</Text>
+              </Box>
+
+              <Box>
+                <Text color="gray.300" fontSize="sm">Avg CPU Usage</Text>
+                <Text fontSize="2xl" fontWeight="700">{(data.system_overview?.avg_cpu_usage_percent ?? 0).toFixed(2)}%</Text>
+                <Text color="gray.400" fontSize="sm">Load 1m: {(data.system_overview?.avg_load_1_min ?? 0).toFixed(2)}</Text>
+              </Box>
+
+              <Box>
+                <Text color="gray.300" fontSize="sm">Avg Memory Usage</Text>
+                <Text fontSize="2xl" fontWeight="700">{(data.system_overview?.avg_memory_usage_percent ?? 0).toFixed(2)}%</Text>
+                <Text color="gray.400" fontSize="sm">Load 15m: {(data.system_overview?.avg_load_15_min ?? 0).toFixed(2)}</Text>
+              </Box>
+            </SimpleGrid>
+
+            <Box mt={6}>
+              <Chart
+                options={summaryPieOptions}
+                series={[
+                  Number(data.system_overview?.avg_cpu_usage_percent ?? 0),
+                  Number(data.system_overview?.avg_memory_usage_percent ?? 0),
+                ]}
+                type="pie"
+                height={260}
+              />
+            </Box>
+          </Box>
+
+          {/* Four Charts */}
+          <SimpleGrid columns={[1, 2]} spacing={6}>
+            {/* Top 10 processes by CPU */}
+            <Box bg="gray.800" p={4} borderRadius="lg" boxShadow="md">
+              <Heading size="sm" color="white" mb={3}>Top 10 Processes by CPU</Heading>
+              <Chart
+                options={makeBarOptions(
+                  topProcessesBy(data.top_10_processes_cpu || [], "name", "avg_cpu_percent").cats,
+                  "Processes (CPU)",
+                  "#E53E3E"
+                )}
+                series={[{ name: "CPU %", data: topProcessesBy(data.top_10_processes_cpu || [], "name", "avg_cpu_percent").vals }]}
+                type="bar"
+                height={300}
+              />
+            </Box>
+
+            {/* Top 10 processes by Memory */}
+            <Box bg="gray.800" p={4} borderRadius="lg" boxShadow="md">
+              <Heading size="sm" color="white" mb={3}>Top 10 Processes by Memory</Heading>
+              <Chart
+                options={makeBarOptions(
+                  topProcessesBy(data.top_10_processes_mem || [], "name", "avg_memory_percent").cats,
+                  "Processes (Memory)",
+                  "#DD6B20"
+                )}
+                series={[{ name: "Memory %", data: topProcessesBy(data.top_10_processes_mem || [], "name", "avg_memory_percent").vals }]}
+                type="bar"
+                height={300}
+              />
+            </Box>
+
+            {/* Top 10 users by CPU */}
+            <Box bg="gray.800" p={4} borderRadius="lg" boxShadow="md">
+              <Heading size="sm" color="white" mb={3}>Top 10 Users by CPU</Heading>
+              <Chart
+                options={makeBarOptions(
+                  topUsersBy(data.top_10_users_cpu || [], "avg_total_cpu_percent").cats,
+                  "Users (CPU)",
+                  "#3182CE"
+                )}
+                series={[{ name: "CPU %", data: topUsersBy(data.top_10_users_cpu || [], "avg_total_cpu_percent").vals }]}
+                type="bar"
+                height={300}
+              />
+            </Box>
+
+            {/* Top 10 users by Memory */}
+            <Box bg="gray.800" p={4} borderRadius="lg" boxShadow="md">
+              <Heading size="sm" color="white" mb={3}>Top 10 Users by Memory</Heading>
+              <Chart
+                options={makeBarOptions(
+                  topUsersBy(data.top_10_users_mem || [], "avg_total_mem_percent").cats,
+                  "Users (Memory)",
+                  "#38A169"
+                )}
+                series={[{ name: "Memory %", data: topUsersBy(data.top_10_users_mem || [], "avg_total_mem_percent").vals }]}
+                type="bar"
+                height={300}
+              />
+            </Box>
+          </SimpleGrid>
+        </>
+      )}
     </VStack>
   );
 };
 
-export default UserUtilizationCharts;
+export default HostDashboard;
