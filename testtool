@@ -1,39 +1,41 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-// CRITICAL: Ensure 'Select' and 'HStack' are included in your imports
-import { Box, Heading, Spinner, Text, VStack, Select, HStack } from "@chakra-ui/react"; 
+import { Box, Heading, Spinner, Text, VStack, Select, HStack } from "@chakra-ui/react";
 import Chart from "react-apexcharts";
 
-const ToolUsageCharts = () => {
-  const [data, setData] = useState([]);
+const UserUtilizationCharts = () => {
+  const [cpuData, setCpuData] = useState({});
+  const [memoryData, setMemoryData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  // NEW: State for time frame, defaults to 'latest'
   const [timeframe, setTimeframe] = useState("latest");
 
-  // NEW: Helper function to get the API endpoint based on the selected time frame
-  const getToolApiEndpoint = (frame) => {
+  // NEW: Helper function to get the full API endpoint based on the selected time frame
+  const getUsersApiEndpoint = (frame) => {
     switch (frame) {
       case "day":
-        return "/tool/usage/day"; // Appends /day for Last Day Average
+        return "/users/usage/day";
       case "week":
-        return "/tool/usage/week"; // Appends /week for Last Week Average
+        return "/users/usage/week";
       case "latest":
       default:
-        return "/tool/usage";
+        return "/users/usage/latest"; // Using /latest as the default base endpoint
     }
   };
 
-  // Fetch data from API
+  // Fetch CPU and Memory data from a single API call
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true); 
+      setLoading(true); // Set loading to true on every fetch
       setError(false);
       try {
-        // UPDATED: Use the helper to determine the endpoint dynamically
-        const endpoint = getToolApiEndpoint(timeframe);
+        // UPDATED: Use the new single endpoint
+        const endpoint = getUsersApiEndpoint(timeframe);
         const response = await axios.get(endpoint);
-        setData(response.data);
+        
+        // UPDATED: Extract data from the single response object using the new keys
+        setCpuData(response.data.cpu_usage || {});
+        setMemoryData(response.data.memory_usage || {});
         setLoading(false);
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -46,7 +48,6 @@ const ToolUsageCharts = () => {
     // Re-run effect whenever timeframe changes
   }, [timeframe]);
 
-  // NEW: Handler for time frame change
   const handleTimeframeChange = (e) => {
     setTimeframe(e.target.value);
   };
@@ -69,41 +70,41 @@ const ToolUsageCharts = () => {
     );
   }
 
-  // Extract chart data
-  const toolNames = data.map((item) => item.tool_name);
-  const cpuValues = data.map((item) => item.avg_cpu_percent);
-  const memoryValues = data.map((item) => item.avg_memory_percent);
-  const ioValues = data.map((item) => item.avg_io_percent);
+  // Convert objects to sorted arrays
+  const sortAndTakeTop50Percent = (obj) => {
+    const entries = Object.entries(obj).sort((a, b) => b[1] - a[1]);
+    const half = Math.ceil(entries.length / 2);
+    return entries.slice(0, half);
+  };
+
+  const topCpu = sortAndTakeTop50Percent(cpuData);
+  const topMemory = sortAndTakeTop50Percent(memoryData);
+
+  const cpuCategories = topCpu.map(([user]) => user);
+  const cpuValues = topCpu.map(([, value]) => value);
+
+  const memCategories = topMemory.map(([user]) => user);
+  const memValues = topMemory.map(([, value]) => value);
 
   const baseOptions = {
     chart: { type: "bar", toolbar: { show: false } },
-    xaxis: {
-      categories: toolNames,
-      labels: { style: { fontSize: "12px", colors: "#E2E8F0" } },
-    },
+    plotOptions: { bar: { borderRadius: 4, horizontal: false, columnWidth: "55%" } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: "#2D3748" },
+    tooltip: { theme: "dark" },
     yaxis: {
-      title: { text: "Percentage (%)", style: { color: "#E2E8F0" } },
+      title: { text: "Utilization (%)", style: { color: "#E2E8F0" } },
       labels: { style: { colors: "#E2E8F0" } },
     },
-    plotOptions: {
-      bar: { borderRadius: 4, columnWidth: "55%" },
-    },
-    dataLabels: { enabled: false },
-    tooltip: { theme: "dark" },
-    grid: { borderColor: "#2D3748" },
   };
 
-
-  
-
   return (
-    <VStack spacing={8} align="stretch" p={6}>
-      {/* This HStack holds the Dashboard Title and the New Select dropdown */}
+    // Added pt={10} for consistent top spacing, similar to ToolUsageCharts
+    <VStack spacing={8} align="stretch" p={6} pt={10}>
       <HStack justifyContent="space-between" alignItems="center">
         <Heading size="lg" textAlign="center">
-          Tool Performance Overview
+          User Utilization Overview
         </Heading>
-        {/* The Select component with the three options */}
         <Select
           value={timeframe}
           onChange={handleTimeframeChange}
@@ -117,46 +118,49 @@ const ToolUsageCharts = () => {
         </Select>
       </HStack>
 
-      {/* CPU Chart */}
+      {/* CPU Utilization Chart */}
       <Box bg="gray.800" p={5} borderRadius="xl" boxShadow="lg">
         <Heading size="md" color="white" mb={3}>
-          Average CPU Utilization (%)
+          Top 50% CPU Utilization Users
         </Heading>
         <Chart
-          options={{ ...baseOptions, colors: ["#3182CE"] }}
-          series={[{ name: "CPU %", data: cpuValues }]}
+          options={{
+            ...baseOptions,
+            colors: ["#3182CE"],
+            xaxis: {
+              categories: cpuCategories,
+              labels: { style: { colors: "#E2E8F0", fontSize: "11px" } },
+              title: { text: "Users", style: { color: "#E2E8F0" } },
+            },
+          }}
+          series={[{ name: "CPU Util (%)", data: cpuValues }]}
           type="bar"
-          height={300}
+          height={350}
         />
       </Box>
 
-      {/* Memory Chart */}
+      {/* Memory Utilization Chart */}
       <Box bg="gray.800" p={5} borderRadius="xl" boxShadow="lg">
         <Heading size="md" color="white" mb={3}>
-          Average Memory Utilization (%)
+          Top 50% Memory Utilization Users
         </Heading>
         <Chart
-          options={{ ...baseOptions, colors: ["#38A169"] }}
-          series={[{ name: "Memory %", data: memoryValues }]}
+          options={{
+            ...baseOptions,
+            colors: ["#38A169"],
+            xaxis: {
+              categories: memCategories,
+              labels: { style: { colors: "#E2E8F0", fontSize: "11px" } },
+              title: { text: "Users", style: { color: "#E2E8F0" } },
+            },
+          }}
+          series={[{ name: "Memory Util (%)", data: memValues }]}
           type="bar"
-          height={300}
-        />
-      </Box>
-
-      {/* IO Chart */}
-      <Box bg="gray.800" p={5} borderRadius="xl" boxShadow="lg">
-        <Heading size="md" color="white" mb={3}>
-          Average I/O Utilization (%)
-        </Heading>
-        <Chart
-          options={{ ...baseOptions, colors: ["#DD6B20"] }}
-          series={[{ name: "I/O %", data: ioValues }]}
-          type="bar"
-          height={300}
+          height={350}
         />
       </Box>
     </VStack>
   );
 };
 
-export default ToolUsageCharts;
+export default UserUtilizationCharts;
