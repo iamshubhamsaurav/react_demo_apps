@@ -24,15 +24,15 @@ import Chart from "react-apexcharts";
  * - Fetches hostnames from /hosts (expects array of strings)
  * - Fetches host usage from /hosts/{hostname}/{duration} where duration is one of: latest, day, week
  * - Renders a selection UI (hostname + duration) and displays:
- *    - A stylized summary (system_overview) with a pie chart (CPU vs Memory) and stats
- *    - Four bar charts:
- *        1) Top 10 processes by CPU
- *        2) Top 10 processes by Memory
- *        3) Top 10 users by CPU
- *        4) Top 10 users by Memory
+ * - A stylized summary (system_overview) with a pie chart (CPU vs Memory) and stats
+ * - Four bar charts:
+ * 1) Top 10 processes by CPU
+ * 2) Top 10 processes by Memory
+ * 3) Top 10 users by CPU
+ * 4) Top 10 users by Memory
  *
  * Drop this file in your React app and import it. Make sure you have these deps:
- *  npm install axios @chakra-ui/react @emotion/react @emotion/styled framer-motion react-apexcharts apexcharts
+ * npm install axios @chakra-ui/react @emotion/react @emotion/styled framer-motion react-apexcharts apexcharts
  *
  * Wrap your app with <ChakraProvider> at the root.
  */
@@ -78,6 +78,7 @@ const HostDashboard = () => {
       setLoadingData(true);
       setError(null);
       try {
+        // API call remains the same
         const res = await axios.get(`/hosts/${encodeURIComponent(hostname)}/${duration}`);
         setData(res.data);
       } catch (err) {
@@ -97,6 +98,53 @@ const HostDashboard = () => {
     fetchData();
   }, [hostname, duration, toast]);
 
+  // NEW HELPER: Maps the "average" key used in the component to the actual key in the API response
+  const getMetricKey = (baseKey) => {
+    if (duration !== "latest") return baseKey;
+
+    switch (baseKey) {
+      // Process keys
+      case "avg_cpu_percent":
+        return "cpu_percent";
+      case "avg_memory_percent":
+        return "memory_percent";
+      // User keys
+      case "avg_total_cpu_percent":
+        return "total_cpu_percent";
+      case "avg_total_mem_percent":
+        return "total_mem_percent";
+      default:
+        return baseKey; // Use base key for anything not explicitly mapped
+    }
+  };
+
+  // NEW HELPER: Gets the correct value from system_overview, handling nested 'latest' keys
+  const getSystemOverviewStat = (baseKey) => {
+    if (!data || !data.system_overview) return 0;
+
+    const overview = data.system_overview;
+
+    if (duration === "latest") {
+      switch (baseKey) {
+        case "total_memory_gb":
+          return overview.virtual_memory?.total_gb;
+        case "avg_cpu_usage_percent":
+          return overview.cpu_usage_percent;
+        case "avg_memory_usage_percent":
+          return overview.virtual_memory?.usage_percent;
+        case "avg_load_1_min":
+          return overview.load_average?.['1_min'];
+        case "avg_load_15_min":
+          return overview.load_average?.['15_min'];
+        default:
+          return overview[baseKey]; // Fallback for simple keys like cpu_cores
+      }
+    }
+
+    // Default to existing keys for 'day' and 'week'
+    return overview[baseKey];
+  };
+
   // Helper to create bar chart options
   const makeBarOptions = (categories, title, color) => ({
     chart: { type: "bar", toolbar: { show: false } },
@@ -110,6 +158,27 @@ const HostDashboard = () => {
     grid: { borderColor: "#2D3748" },
   });
 
+  // Render helpers for charts data (UPDATED to use getMetricKey)
+  const topProcessesBy = (arr, baseValueKey) => {
+    if (!Array.isArray(arr)) return { cats: [], vals: [] };
+    const actualKey = getMetricKey(baseValueKey); // Get the correct key
+    const slice = arr.slice(0, 10);
+    return {
+      cats: slice.map((x) => x.name || x.item || x.command || "unknown"),
+      vals: slice.map((x) => Number(x[actualKey] || 0)),
+    };
+  };
+
+  const topUsersBy = (arr, baseValueKey) => {
+    if (!Array.isArray(arr)) return { cats: [], vals: [] };
+    const actualKey = getMetricKey(baseValueKey); // Get the correct key
+    const slice = arr.slice(0, 10);
+    return {
+      cats: slice.map((x) => x.username || x.user || "unknown"),
+      vals: slice.map((x) => Number(x[actualKey] || 0)),
+    };
+  };
+
   // Summary pie options
   const summaryPieOptions = {
     chart: { type: "pie", toolbar: { show: false } },
@@ -119,21 +188,16 @@ const HostDashboard = () => {
     colors: ["#3182CE", "#38A169"],
   };
 
-  // Render helpers for charts data
-  const topProcessesBy = (arr, key, valueKey) => {
-    if (!Array.isArray(arr)) return { cats: [], vals: [] };
-    const slice = arr.slice(0, 10);
-    return { cats: slice.map((x) => x.name || x.item || x.command || "unknown"), vals: slice.map((x) => Number(x[valueKey] || 0)) };
-  };
-
-  const topUsersBy = (arr, valueKey) => {
-    if (!Array.isArray(arr)) return { cats: [], vals: [] };
-    const slice = arr.slice(0, 10);
-    return { cats: slice.map((x) => x.username || x.user || "unknown"), vals: slice.map((x) => Number(x[valueKey] || 0)) };
-  };
+  // Prepare normalized summary data for rendering
+  const cpuUsage = getSystemOverviewStat("avg_cpu_usage_percent");
+  const memUsage = getSystemOverviewStat("avg_memory_usage_percent");
+  const totalMemory = getSystemOverviewStat("total_memory_gb");
+  const load1min = getSystemOverviewStat("avg_load_1_min");
+  const load15min = getSystemOverviewStat("avg_load_15_min");
 
   return (
-    <VStack spacing={6} align="stretch" p={6}>
+    // FIX: Added 'pt={10}' (padding-top) for consistent spacing, preventing header overlap.
+    <VStack spacing={6} align="stretch" p={6} pt={10}>
       <Heading size="lg" textAlign="center">
         Host Monitor Dashboard
       </Heading>
@@ -141,7 +205,9 @@ const HostDashboard = () => {
       {/* Controls */}
       <HStack spacing={4} justify="center">
         <Box>
-          <Text mb={2} fontWeight="600">Hostname</Text>
+          <Text mb={2} fontWeight="600">
+            Hostname
+          </Text>
           <Select
             onChange={(e) => setHostname(e.target.value)}
             value={hostname}
@@ -158,7 +224,9 @@ const HostDashboard = () => {
         </Box>
 
         <Box>
-          <Text mb={2} fontWeight="600">Duration</Text>
+          <Text mb={2} fontWeight="600">
+            Duration
+          </Text>
           <Select value={duration} onChange={(e) => setDuration(e.target.value)} minW="180px" bg="gray.700" color="white">
             {durations.map((d) => (
               <option key={d.key} value={d.key}>
@@ -192,25 +260,41 @@ const HostDashboard = () => {
           <Box bg="gray.800" p={6} borderRadius="lg" boxShadow="lg">
             <SimpleGrid columns={[1, 2, 4]} spacing={6} alignItems="center">
               <Box>
-                <Text color="gray.300" fontSize="sm">CPU Cores</Text>
-                <Text fontSize="2xl" fontWeight="700">{data.system_overview?.cpu_cores ?? "—"}</Text>
+                <Text color="gray.300" fontSize="sm">
+                  CPU Cores
+                </Text>
+                {/* Updated to use getSystemOverviewStat */}
+                <Text fontSize="2xl" fontWeight="700">{getSystemOverviewStat("cpu_cores") ?? "—"}</Text>
               </Box>
 
               <Box>
-                <Text color="gray.300" fontSize="sm">Total Memory (GB)</Text>
-                <Text fontSize="2xl" fontWeight="700">{(data.system_overview?.total_memory_gb ?? 0).toFixed(2)}</Text>
+                <Text color="gray.300" fontSize="sm">
+                  Total Memory (GB)
+                </Text>
+                {/* Updated to use getSystemOverviewStat */}
+                <Text fontSize="2xl" fontWeight="700">{Number(totalMemory ?? 0).toFixed(2)}</Text>
               </Box>
 
               <Box>
-                <Text color="gray.300" fontSize="sm">Avg CPU Usage</Text>
-                <Text fontSize="2xl" fontWeight="700">{(data.system_overview?.avg_cpu_usage_percent ?? 0).toFixed(2)}%</Text>
-                <Text color="gray.400" fontSize="sm">Load 1m: {(data.system_overview?.avg_load_1_min ?? 0).toFixed(2)}</Text>
+                <Text color="gray.300" fontSize="sm">
+                  Avg CPU Usage
+                </Text>
+                {/* Updated to use getSystemOverviewStat */}
+                <Text fontSize="2xl" fontWeight="700">{Number(cpuUsage ?? 0).toFixed(2)}%</Text>
+                <Text color="gray.400" fontSize="sm">
+                  Load 1m: {Number(load1min ?? 0).toFixed(2)}
+                </Text>
               </Box>
 
               <Box>
-                <Text color="gray.300" fontSize="sm">Avg Memory Usage</Text>
-                <Text fontSize="2xl" fontWeight="700">{(data.system_overview?.avg_memory_usage_percent ?? 0).toFixed(2)}%</Text>
-                <Text color="gray.400" fontSize="sm">Load 15m: {(data.system_overview?.avg_load_15_min ?? 0).toFixed(2)}</Text>
+                <Text color="gray.300" fontSize="sm">
+                  Avg Memory Usage
+                </Text>
+                {/* Updated to use getSystemOverviewStat */}
+                <Text fontSize="2xl" fontWeight="700">{Number(memUsage ?? 0).toFixed(2)}%</Text>
+                <Text color="gray.400" fontSize="sm">
+                  Load 15m: {Number(load15min ?? 0).toFixed(2)}
+                </Text>
               </Box>
             </SimpleGrid>
 
@@ -218,8 +302,8 @@ const HostDashboard = () => {
               <Chart
                 options={summaryPieOptions}
                 series={[
-                  Number(data.system_overview?.avg_cpu_usage_percent ?? 0),
-                  Number(data.system_overview?.avg_memory_usage_percent ?? 0),
+                  Number(cpuUsage ?? 0),
+                  Number(memUsage ?? 0),
                 ]}
                 type="pie"
                 height={260}
@@ -227,18 +311,20 @@ const HostDashboard = () => {
             </Box>
           </Box>
 
-          {/* Four Charts */}
+          {/* Four Charts - Use new topProcessesBy/topUsersBy with base keys */}
           <SimpleGrid columns={[1, 2]} spacing={6}>
             {/* Top 10 processes by CPU */}
             <Box bg="gray.800" p={4} borderRadius="lg" boxShadow="md">
-              <Heading size="sm" color="white" mb={3}>Top 10 Processes by CPU</Heading>
+              <Heading size="sm" color="white" mb={3}>
+                Top 10 Processes by CPU
+              </Heading>
               <Chart
                 options={makeBarOptions(
-                  topProcessesBy(data.top_10_processes_cpu || [], "name", "avg_cpu_percent").cats,
+                  topProcessesBy(data.top_10_processes_cpu || [], "avg_cpu_percent").cats,
                   "Processes (CPU)",
                   "#E53E3E"
                 )}
-                series={[{ name: "CPU %", data: topProcessesBy(data.top_10_processes_cpu || [], "name", "avg_cpu_percent").vals }]}
+                series={[{ name: "CPU %", data: topProcessesBy(data.top_10_processes_cpu || [], "avg_cpu_percent").vals }]}
                 type="bar"
                 height={300}
               />
@@ -246,14 +332,16 @@ const HostDashboard = () => {
 
             {/* Top 10 processes by Memory */}
             <Box bg="gray.800" p={4} borderRadius="lg" boxShadow="md">
-              <Heading size="sm" color="white" mb={3}>Top 10 Processes by Memory</Heading>
+              <Heading size="sm" color="white" mb={3}>
+                Top 10 Processes by Memory
+              </Heading>
               <Chart
                 options={makeBarOptions(
-                  topProcessesBy(data.top_10_processes_mem || [], "name", "avg_memory_percent").cats,
+                  topProcessesBy(data.top_10_processes_mem || [], "avg_memory_percent").cats,
                   "Processes (Memory)",
                   "#DD6B20"
                 )}
-                series={[{ name: "Memory %", data: topProcessesBy(data.top_10_processes_mem || [], "name", "avg_memory_percent").vals }]}
+                series={[{ name: "Memory %", data: topProcessesBy(data.top_10_processes_mem || [], "avg_memory_percent").vals }]}
                 type="bar"
                 height={300}
               />
@@ -261,7 +349,9 @@ const HostDashboard = () => {
 
             {/* Top 10 users by CPU */}
             <Box bg="gray.800" p={4} borderRadius="lg" boxShadow="md">
-              <Heading size="sm" color="white" mb={3}>Top 10 Users by CPU</Heading>
+              <Heading size="sm" color="white" mb={3}>
+                Top 10 Users by CPU
+              </Heading>
               <Chart
                 options={makeBarOptions(
                   topUsersBy(data.top_10_users_cpu || [], "avg_total_cpu_percent").cats,
@@ -276,7 +366,9 @@ const HostDashboard = () => {
 
             {/* Top 10 users by Memory */}
             <Box bg="gray.800" p={4} borderRadius="lg" boxShadow="md">
-              <Heading size="sm" color="white" mb={3}>Top 10 Users by Memory</Heading>
+              <Heading size="sm" color="white" mb={3}>
+                Top 10 Users by Memory
+              </Heading>
               <Chart
                 options={makeBarOptions(
                   topUsersBy(data.top_10_users_mem || [], "avg_total_mem_percent").cats,
