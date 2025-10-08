@@ -1,0 +1,265 @@
+{
+  "system_overview": {
+    "timestamp": "2025-10-08T22:00:02.832388",
+    "cpu_cores": 4,
+    "cpu_usage_percent": 31.8,
+    "virtual_memory": {
+      "total_gb": 31.0755500793457,
+      "used_gb": 17.7142295837402,
+      "usage_percent": 62.3
+    },
+    "load_average": {
+      "1_min": 7.46,
+      "5_min": 9.89,
+      "15_min": 10.8
+    }
+  },
+  "top_10_processes_cpu": [
+    {
+      "name": "systemd",
+      "user": "root",
+      "pid": 1,
+      "cpu_percent": 0,
+      "memory_percent": 0.0609113202620734
+    },
+    {
+      "name": "kthreadd",
+      "user": "root",
+      "pid": 2,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    },
+    {
+      "name": "rcu_gp",
+      "user": "root",
+      "pid": 3,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    },
+    {
+      "name": "rcu_par_gp",
+      "user": "root",
+      "pid": 4,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    },
+    {
+      "name": "slub_flushwq",
+      "user": "root",
+      "pid": 5,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    },
+    {
+      "name": "kworker/0:0H-events_highpri",
+      "user": "root",
+      "pid": 7,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    },
+    {
+      "name": "mm_percpu_wq",
+      "user": "root",
+      "pid": 10,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    },
+    {
+      "name": "rcu_tasks_rude_",
+      "user": "root",
+      "pid": 11,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    },
+    {
+      "name": "rcu_tasks_trace",
+      "user": "root",
+      "pid": 12,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    },
+    {
+      "name": "ksoftirqd/0",
+      "user": "root",
+      "pid": 13,
+      "cpu_percent": 0,
+      "memory_percent": 0
+    }
+  ],
+  "top_10_processes_mem": [
+    {
+      "name": "Xorg",
+      "user": "a0487347",
+      "pid": 1196566,
+      "cpu_percent": 0,
+      "memory_percent": 3.63581168262428
+    },
+    {
+      "name": "Xorg",
+      "user": "a0502727",
+      "pid": 42355,
+      "cpu_percent": 0,
+      "memory_percent": 3.21016897428749
+    },
+    {
+      "name": "Xorg",
+      "user": "a0492470",
+      "pid": 1017352,
+      "cpu_percent": 0,
+      "memory_percent": 2.15898836633065
+    },
+    {
+      "name": "Xorg",
+      "user": "a0510937",
+      "pid": 632434,
+      "cpu_percent": 0,
+      "memory_percent": 1.96475220742158
+    },
+    {
+      "name": "Xorg",
+      "user": "a1247005",
+      "pid": 4160086,
+      "cpu_percent": 0,
+      "memory_percent": 1.96434711399783
+    },
+    {
+      "name": "Xorg",
+      "user": "x1248002",
+      "pid": 1026801,
+      "cpu_percent": 0,
+      "memory_percent": 1.91161131556053
+    },
+    {
+      "name": "Xorg",
+      "user": "a1250684",
+      "pid": 1009004,
+      "cpu_percent": 0,
+      "memory_percent": 1.66520403389576
+    },
+    {
+      "name": "Xorg",
+      "user": "a0507151",
+      "pid": 995994,
+      "cpu_percent": 0,
+      "memory_percent": 1.55933961915571
+    },
+    {
+      "name": "Xorg",
+      "user": "x1103142",
+      "pid": 47500,
+      "cpu_percent": 0,
+      "memory_percent": 1.53073756832729
+    },
+    {
+      "name": "Xorg",
+      "user": "a0487229",
+      "pid": 1233148,
+      "cpu_percent": 0,
+      "memory_percent": 1.21875425424817
+    }
+  ],
+  "top_10_users_cpu": [
+    {
+      "username": "a0491983",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 0.0151112122617115
+    },
+    {
+      "username": "a0511033",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 0.0165720036988712
+    },
+    {
+      "username": "a0502727",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 10.59288614211
+    },
+    {
+      "username": "a0489278",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 0.0119072915465964
+    },
+    {
+      "username": "a0393669",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 0.000589226798182088
+    },
+    {
+      "username": "a1247005",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 4.28644082340026
+    },
+    {
+      "username": "a0271943",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 0.00421051649534284
+    },
+    {
+      "username": "a0507151",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 5.48753054926126
+    },
+    {
+      "username": "a1240652",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 0.000589226798182088
+    },
+    {
+      "username": "x1103142",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 5.02556446392821
+    }
+  ],
+  "top_10_users_mem": [
+    {
+      "username": "a0502727",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 10.59288614211
+    },
+    {
+      "username": "a0487347",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 9.86562069089543
+    },
+    {
+      "username": "a0507151",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 5.48753054926126
+    },
+    {
+      "username": "a0492470",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 5.46187463242375
+    },
+    {
+      "username": "x1103142",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 5.02556446392821
+    },
+    {
+      "username": "a1250684",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 4.8471269485454
+    },
+    {
+      "username": "x1248002",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 4.8338816211446
+    },
+    {
+      "username": "a1247005",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 4.28644082340026
+    },
+    {
+      "username": "a0510937",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 4.19361305156999
+    },
+    {
+      "username": "a0487229",
+      "total_cpu_percent": 0,
+      "total_mem_percent": 4.14730964567951
+    }
+  ]
+}
