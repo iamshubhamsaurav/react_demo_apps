@@ -1,0 +1,162 @@
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+// IMPORTANT: Ensure Select and HStack are included in imports
+import { Box, Heading, Spinner, Text, VStack, Select, HStack } from "@chakra-ui/react"; 
+import Chart from "react-apexcharts";
+
+const ToolUsageCharts = () => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  // NEW: State for time frame, defaults to 'latest'
+  const [timeframe, setTimeframe] = useState("latest");
+
+  // NEW: Helper function to get the API endpoint based on the selected time frame
+  const getToolApiEndpoint = (frame) => {
+    switch (frame) {
+      case "day":
+        return "/tool/usage/day";
+      case "week":
+        return "/tool/usage/week";
+      case "latest":
+      default:
+        return "/tool/usage";
+    }
+  };
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true); 
+      setError(false);
+      try {
+        // UPDATED: Use the helper to determine the endpoint
+        const endpoint = getToolApiEndpoint(timeframe);
+        const response = await axios.get(endpoint);
+        setData(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError(true);
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    // UPDATED: Re-run effect whenever timeframe changes
+  }, [timeframe]);
+
+  // NEW: Handler for time frame change
+  const handleTimeframeChange = (e) => {
+    setTimeframe(e.target.value);
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" alignItems="center" justifyContent="center" minH="60vh">
+        <Spinner size="xl" color="blue.500" />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box textAlign="center" mt={10}>
+        <Text color="red.500" fontSize="lg">
+          Failed to load data from API.
+        </Text>
+      </Box>
+    );
+  }
+
+  // Extract chart data
+  const toolNames = data.map((item) => item.tool_name);
+  const cpuValues = data.map((item) => item.avg_cpu_percent);
+  const memoryValues = data.map((item) => item.avg_memory_percent);
+  const ioValues = data.map((item) => item.avg_io_percent);
+
+  const baseOptions = {
+    chart: { type: "bar", toolbar: { show: false } },
+    xaxis: {
+      categories: toolNames,
+      labels: { style: { fontSize: "12px", colors: "#E2E8F0" } },
+    },
+    yaxis: {
+      title: { text: "Percentage (%)", style: { color: "#E2E8F0" } },
+      labels: { style: { colors: "#E2E8F0" } },
+    },
+    plotOptions: {
+      bar: { borderRadius: 4, columnWidth: "55%" },
+    },
+    dataLabels: { enabled: false },
+    tooltip: { theme: "dark" },
+    grid: { borderColor: "#2D3748" },
+  };
+
+
+  
+
+  return (
+    <VStack spacing={8} align="stretch" p={6}>
+      {/* NEW: HStack for the Title and the Dropdown */}
+      <HStack justifyContent="space-between" alignItems="center">
+        <Heading size="lg" textAlign="center">
+          Tool Performance Overview
+        </Heading>
+        <Select
+          value={timeframe}
+          onChange={handleTimeframeChange}
+          width="200px"
+          bg="gray.700"
+          color="white"
+        >
+          {/* NEW: Options are here */}
+          <option value="latest">Latest Data</option>
+          <option value="day">Last Day Average</option>
+          <option value="week">Last Week Average</option>
+        </Select>
+      </HStack>
+
+      {/* CPU Chart */}
+      <Box bg="gray.800" p={5} borderRadius="xl" boxShadow="lg">
+        <Heading size="md" color="white" mb={3}>
+          Average CPU Utilization (%)
+        </Heading>
+        <Chart
+          options={{ ...baseOptions, colors: ["#3182CE"] }}
+          series={[{ name: "CPU %", data: cpuValues }]}
+          type="bar"
+          height={300}
+        />
+      </Box>
+
+      {/* Memory Chart */}
+      <Box bg="gray.800" p={5} borderRadius="xl" boxShadow="lg">
+        <Heading size="md" color="white" mb={3}>
+          Average Memory Utilization (%)
+        </Heading>
+        <Chart
+          options={{ ...baseOptions, colors: ["#38A169"] }}
+          series={[{ name: "Memory %", data: memoryValues }]}
+          type="bar"
+          height={300}
+        />
+      </Box>
+
+      {/* IO Chart */}
+      <Box bg="gray.800" p={5} borderRadius="xl" boxShadow="lg">
+        <Heading size="md" color="white" mb={3}>
+          Average I/O Utilization (%)
+        </Heading>
+        <Chart
+          options={{ ...baseOptions, colors: ["#DD6B20"] }}
+          series={[{ name: "I/O %", data: ioValues }]}
+          type="bar"
+          height={300}
+        />
+      </Box>
+    </VStack>
+  );
+};
+
+export default ToolUsageCharts;
